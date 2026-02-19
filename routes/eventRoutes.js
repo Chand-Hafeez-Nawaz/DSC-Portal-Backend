@@ -2,14 +2,26 @@ const express = require("express");
 const router = express.Router();
 const Event = require("../models/Event");
 const multer = require("multer");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
 
-// Storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+/* ================================
+   CLOUDINARY CONFIG
+================================ */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+/* ================================
+   MULTER + CLOUDINARY STORAGE
+================================ */
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "dsc-events",
+    allowed_formats: ["jpg", "png", "jpeg", "pdf"],
   },
 });
 
@@ -32,7 +44,7 @@ router.post("/", upload.single("brochure"), async (req, res) => {
     await newEvent.save();
     res.status(201).json(newEvent);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Event creation failed" });
   }
 });
 
@@ -73,7 +85,7 @@ router.put("/:id", upload.single("brochure"), async (req, res) => {
 
     res.json(updatedEvent);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Event update failed" });
   }
 });
 
