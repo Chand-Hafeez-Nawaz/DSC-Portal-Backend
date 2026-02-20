@@ -3,50 +3,34 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 // ================= LOGIN =================
-const loginUser = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+const User = require("./models/User");
+const bcrypt = require("bcryptjs");
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Please provide email and password" });
-    }
+mongoose.connect(process.env.MONGO_URI)
+  .then(async () => {
+    console.log("MongoDB Atlas Connected");
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+    const existing = await User.findOne({ email: "admin@dsc.in" });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+    if (!existing) {
+      const hashed = await bcrypt.hash("admin123", 10);
 
-    // 🔥 CHECK APPROVAL
-    if (user.role === "school" && !user.isApproved) {
-      return res.status(403).json({
-        message: "Waiting for admin approval",
+      await User.create({
+        email: "admin@dsc.in",
+        password: hashed,
+        role: "admin"   // if your model has role field
       });
+
+      console.log("Default Admin User Created");
+    } else {
+      console.log("Admin User Already Exists");
     }
 
-    const token = jwt.sign(
-  { id: user._id, role: user.role },
-  process.env.JWT_SECRET,
-  { expiresIn: "1d" }
-);
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        role: user.role,
-      },
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
+  })
+  .catch(err => {
+    console.error("MongoDB Error:", err);
+    process.exit(1);
+  });
 
 // ================= CHANGE PASSWORD =================
 const changePassword = async (req, res) => {
