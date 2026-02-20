@@ -23,35 +23,22 @@ app.use("/uploads", express.static("uploads"));
 
 /* ================= MONGODB CONNECTION ================= */
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(async () => {
-    console.log("MongoDB Atlas Connected");
+const User = require("./models/User");
+const bcrypt = require("bcryptjs");
 
-    const User = require("./models/User");
-    const bcrypt = require("bcryptjs");
+const existing = await User.findOne({ email: "admin@dsc.in" });
 
-    const existing = await User.findOne({ email: "admin@dsc.in" });
+if (!existing) {
+  const hashed = await bcrypt.hash("admin123", 10);
 
-    if (!existing) {
-      const hashed = await bcrypt.hash("admin123", 10);
-
-      await User.create({
-        email: "admin@dsc.in",
-        password: hashed,
-        role: "admin" // optional if you have role field
-      });
-
-      console.log("Default Admin Created");
-    } else {
-      console.log("Admin Already Exists");
-    }
-
-  })
-  .catch(err => {
-    console.error("MongoDB Error:", err);
-    process.exit(1);
+  await User.create({
+    email: "admin@dsc.in",
+    password: hashed,
+    role: "admin"
   });
 
+  console.log("Admin Created Automatically");
+}
 /* ================= ROUTES ================= */
 
 app.use("/api/auth", require("./routes/authRoutes"));
