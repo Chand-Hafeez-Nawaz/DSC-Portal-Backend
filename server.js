@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-
+const path = require("path");
 
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
@@ -11,52 +11,56 @@ const galleryRoutes = require("./routes/galleryRoutes");
 
 const app = express();
 
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://dsc-portal-frontend-kappa.vercel.app"
-  ],
-  credentials: true
-}));
+/* ================= CORS ================= */
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://dsc-portal-frontend-kappa.vercel.app",
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+
+/* ================= STATIC FOLDER ================= */
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================= MONGODB CONNECTION ================= */
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(async () => {
     console.log("MongoDB Atlas Connected");
 
     const User = require("./models/User");
     const bcrypt = require("bcryptjs");
 
-    User.findOne({ email: "admin@dsc.in" })
-      .then(existing => {
-        if (!existing) {
-          bcrypt.hash("admin123", 10)
-            .then(hashed => {
-              return User.create({
-                email: "admin@dsc.in",
-                password: hashed,
-                role: "admin"
-              });
-            })
-            .then(() => {
-              console.log("Default Admin Created");
-            });
-        } else {
-          console.log("Admin Already Exists");
-        }
-      });
+    const existing = await User.findOne({ email: "admin@dsc.in" });
 
+    if (!existing) {
+      const hashed = await bcrypt.hash("admin123", 10);
+      await User.create({
+        email: "admin@dsc.in",
+        password: hashed,
+        role: "admin",
+      });
+      console.log("Default Admin Created");
+    } else {
+      console.log("Admin Already Exists");
+    }
   })
-  .catch(err => {
+  .catch((err) => {
     console.error("MongoDB Error:", err);
     process.exit(1);
   });
+
 /* ================= ROUTES ================= */
 
-app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/gallery", galleryRoutes);
