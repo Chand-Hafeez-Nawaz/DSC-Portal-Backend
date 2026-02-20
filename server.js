@@ -27,18 +27,18 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("MongoDB Atlas Connected");
 
-    // Create default admin if not exists
-    const Admin = require("./models/Admin");
+    const User = require("./models/User");
     const bcrypt = require("bcryptjs");
 
-    const existing = await Admin.findOne({ email: "admin@dsc.in" });
+    const existing = await User.findOne({ email: "admin@dsc.in" });
 
     if (!existing) {
       const hashed = await bcrypt.hash("admin123", 10);
 
-      await Admin.create({
+      await User.create({
         email: "admin@dsc.in",
         password: hashed,
+        role: "admin" // optional if you have role field
       });
 
       console.log("Default Admin Created");

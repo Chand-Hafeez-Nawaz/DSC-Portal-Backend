@@ -1,35 +1,50 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const mongoose=require("mongoose")
-// ================= LOGIN =================
-mongoose.connect(process.env.MONGO_URI)
-  .then(async () => {
-    console.log("MongoDB Atlas Connected");
 
-    const existing = await User.findOne({ email: "admin@dsc.in" });
+/* ================= LOGIN ================= */
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-    if (!existing) {
-      const hashed = await bcrypt.hash("admin123", 10);
-
-      await User.create({
-        email: "admin@dsc.in",
-        password: hashed,
-        role: "admin"   // if your model has role field
-      });
-
-      console.log("Default Admin User Created");
-    } else {
-      console.log("Admin User Already Exists");
+    if (!email || !password) {
+      return res.status(400).json({ message: "Please provide email and password" });
     }
 
-  })
-  .catch(err => {
-    console.error("MongoDB Error:", err);
-    process.exit(1);
-  });
+    const user = await User.findOne({ email });
 
-// ================= CHANGE PASSWORD =================
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* ================= CHANGE PASSWORD ================= */
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -38,8 +53,7 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    // IMPORTANT FIX HERE
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -48,24 +62,21 @@ const changePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: "Current password is incorrect" });
+      return res.status(400).json({ message: "Current password incorrect" });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    user.password = hashedPassword;
-
+    user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
-    res.json({ message: "Password updated successfully ✅" });
+    res.json({ message: "Password updated successfully" });
 
   } catch (error) {
     console.error("Change Password Error:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
+
 module.exports = {
   loginUser,
-  registerUser,
-  changePassword,
+  changePassword
 };
