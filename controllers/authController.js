@@ -1,7 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
+const mongoose=require("mongoose")
 // ================= LOGIN =================
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
